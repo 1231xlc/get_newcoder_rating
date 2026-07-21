@@ -146,7 +146,7 @@ https://ac.nowcoder.com/acm/contest/137561
 修改：
 
 ```python
-school_name = "南京邮电大学"
+school_name = "江苏第二师范学院"
 ```
 
 ---
@@ -157,7 +157,7 @@ school_name = "南京邮电大学"
 
 ```python
 name_map = {
-    "nju": "张三",
+    "jssnu": "雪怜春",
 }
 ```
 
@@ -206,7 +206,7 @@ cloudscraper获取Rating
 控制台：
 
 ```
-找到17名同学
+找到1名同学
 
 查询: nju 1600
 
@@ -232,16 +232,6 @@ NowCoder-Rating-Crawler
 ---
 
 # 注意事项
-
-## 登录
-
-牛客排名页面可能需要登录。
-
-第一次运行时：
-
-1. 等待浏览器打开
-2. 手动完成登录
-3. 程序继续执行
 
 ---
 
