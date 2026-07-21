@@ -15,11 +15,11 @@ import time
 # 比赛ID
 contest_id = "133876"
 
-school_name = "南京邮电大学"
+school_name = "江苏第二师范学院"
 
 # ID对应的名单
 name_map = {
-    "nju": "张三",
+    "jssnu": "雪怜春",
     }
 
 # ==============================
