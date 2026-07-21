@@ -4,99 +4,441 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
+import cloudscraper
+from bs4 import BeautifulSoup
 import pandas as pd
 import time
 
+# ==============================
+# 配置
+# ==============================
+# 比赛ID
+contest_id = "133876"
 
-def get_detailed_rating():
-    print(1)
-    # 1. 启动浏览器
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-    print(2)
-    wait = WebDriverWait(driver, 20)
+school_name = "南京邮电大学"
 
-    # 2. 登录与搜索
-    contest_id = "130107"  # 你的比赛ID
-    driver.get(f"https://ac.nowcoder.com/acm/contest/{contest_id}#rank")
+# ID对应的名单
+name_map = {
+    "nju": "张三",
+    }
 
-    print("⚠️ 请在弹出的浏览器中完成登录，并确保排名列表已加载...")
-    # 如果 15 秒不够登录，请自行调大这个数字
-    time.sleep(15)
+# ==============================
+# Selenium获取排名
+# ==============================
 
-    # 自动搜索学校
-    try:
-        search_box = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[placeholder*='输入用户名称']")))
-        search_box.clear()
-        search_box.send_keys("江苏第二师范学院")
-        time.sleep(3)
-        search_box.send_keys(Keys.ENTER)  # 💡 关键：模拟按下回车键
-        print("🔍 已提交搜索，等待列表刷新...")
-        time.sleep(5)  # 等待搜索结果加载完成
-    except Exception as e:
-        print("搜索框加载失败，请手动在浏览器搜索‘江苏第二师范学院’。")
+def get_rank_by_selenium():
 
-    # 3. 第一步：抓取列表中的基本信息和主页 URL
+    print("启动浏览器获取排名...")
+
+    driver = webdriver.Chrome(
+        service=Service(
+            r"D:\chromedriver\chromedriver.exe"
+        )
+    )
+
+    wait = WebDriverWait(
+        driver,
+        20
+    )
+
+    driver.get(
+        f"https://ac.nowcoder.com/acm/contest/{contest_id}#rank"
+    )
+
+    time.sleep(5)
+
     user_list = []
-    # 重新获取搜索后的行
-    rows = driver.find_elements(By.CSS_SELECTOR, "tr")
+
+    # 搜索学校
+
+    try:
+
+        search_box = wait.until(
+            EC.presence_of_element_located(
+                (
+                    By.CSS_SELECTOR,
+                    "input[placeholder*='输入用户名称']"
+                )
+            )
+        )
+
+        search_box.clear()
+
+        search_box.send_keys(
+            school_name
+        )
+
+        search_box.send_keys(
+            Keys.ENTER
+        )
+
+        print(
+            "已搜索学校"
+        )
+
+        time.sleep(5)
+
+    except Exception as e:
+
+        print(
+            "搜索失败:",
+            e
+        )
+
+    # 获取排名表
+
+    rows = driver.find_elements(
+        By.CSS_SELECTOR,
+        "tr"
+    )
+
     for row in rows:
-        # 只处理包含学校名称的有效行
-        if "江苏第二师范学院" in row.text:
-            try:
-                cols = row.find_elements(By.TAG_NAME, "td")
-                # 精确抓取第二列中的 <a> 标签（昵称和链接）
-                name_element = cols[1].find_element(By.TAG_NAME, "a")
-                user_list.append({
-                    "排名": cols[0].text.strip(),
-                    "昵称": name_element.text.strip(),
-                    "主页": name_element.get_attribute("href"),
-                    "AC数量": cols[3].text.strip(),
-                    "总分": cols[4].text.strip()
-                })
-            except:
-                continue
 
-    print(f"📊 找到 {len(user_list)} 名同学，准备进入详情页抓取 Rating...")
-
-    # 4. 第二步：穿梭进入每个人的主页抓取 Rating
-    final_data = []
-    for user in user_list:
-        print(f"正在查询: {user['昵称']} ...", end="")
-        driver.get(user['主页'])
+        if school_name not in row.text:
+            continue
 
         try:
-            # 💡 核心修改：使用 CSS 选择器匹配包含 'rate-score' 的 a 标签
-            # 这种方式可以兼容 rate-score1, rate-score2 等所有颜色的分数
-            time.sleep(2)  # 给页面一点点加载 JS 的时间
-            rating_selector = "a[class*='state-num']"
-            rating_element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, rating_selector)))
 
-            user['Rating'] = rating_element.text.strip()
+            cols = row.find_elements(
+                By.TAG_NAME,
+                "td"
+            )
+
+            if len(cols)<5:
+                continue
+
+            name_element = cols[1].find_element(
+                By.TAG_NAME,
+                "a"
+            )
+
+            user_list.append(
+                {
+                    "排名":
+                    cols[0].text.strip(),
+
+                    "昵称":
+                    name_element.text.strip(),
+
+                    "主页":
+                    name_element.get_attribute(
+                        "href"
+                    ),
+
+                    "AC数量":
+                    cols[3].text.strip(),
+
+                    "总分":
+                    cols[4].text.strip()
+
+                }
+            )
         except:
-            # 备选方案：如果上面的没找到，尝试通过父级 .state-num 定位
-            try:
-                user['Rating'] = driver.find_element(By.CSS_SELECTOR, ".state-num a").text.strip()
-            except:
-                user['Rating'] = "暂无(未参加周赛)"
+            continue
 
-        print(f" 结果: {user['Rating']}")
-        final_data.append(user)
-        time.sleep(1)  # 访问频率控制，保护账号
-
-    # 5. 保存结果
-    if final_data:
-        df = pd.DataFrame(final_data)
-        # 调整列顺序
-        df = df[["排名", "昵称", "AC数量", "总分", "Rating"]]
-        output_file = "江苏第二师范学院_Rating详情表.xlsx"
-        df.to_excel(output_file, index=False)
-        print(f"\n🎉 任务完成！文件已保存为: {output_file}")
-    else:
-        print("\n❌ 未能提取到任何数据，请检查登录状态或搜索词。")
+    print(
+        f"找到 {len(user_list)} 名同学"
+    )
 
     driver.quit()
 
+    return user_list
+
+# ==============================
+# cloudscraper获取Rating
+# ==============================
+
+def get_rating(user_list):
+    print(
+        "\n开始获取Rating..."
+    )
+
+    scraper = cloudscraper.create_scraper(
+        browser={
+            "browser":"chrome",
+            "platform":"windows",
+            "mobile":False
+        }
+    )
+
+    headers = {
+
+        "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        " AppleWebKit/537.36 Chrome/120 Safari/537.36"
+
+    }
+
+    final_data=[]
+
+    for user in user_list:
+
+        print(
+            "查询:",
+            user["昵称"],
+            end=" "
+        )
+
+        try:
+
+            resp = scraper.get(
+                user["主页"],
+                headers=headers,
+                timeout=20
+            )
+
+            soup = BeautifulSoup(
+                resp.text,
+                "html.parser"
+            )
+
+            rating = soup.select_one(
+                "a[class*='state-num']"
+            )
+
+            if rating:
+
+                user["Rating"] = (
+                    rating.text.strip()
+                )
+
+            else:
+
+                user["Rating"] = (
+                    "暂无"
+                )
+
+        except Exception as e:
+
+            print(
+                "失败:",
+                e
+            )
+
+            user["Rating"] = (
+                "获取失败"
+            )
+
+        print(
+            user["Rating"]
+        )
+
+        final_data.append(
+            user
+        )
+
+        time.sleep(0.5)
+
+    return final_data
+
+# ==============================
+# 添加真实姓名
+# ==============================
+
+def add_real_name(data):
+
+    for user in data:
+
+        user["姓名"] = (
+            name_map.get(
+                user["昵称"],
+                "未知"
+            )
+        )
+    return data
+
+# ==============================
+# 保存Excel
+# ==============================
+
+def save_excel(data):
+
+    from openpyxl.styles import Alignment
+    from openpyxl.utils import get_column_letter
+
+    if data:
+
+        df = pd.DataFrame(data)
+
+        # 调整列顺序
+        df = df[
+            [
+                "排名",
+                "姓名",
+                "昵称",
+                "AC数量",
+                "总分",
+                "Rating"
+            ]
+        ]
+
+        output_file = (
+            "Rating详情.xlsx"
+        )
+
+        with pd.ExcelWriter(
+            output_file,
+            engine="openpyxl"
+        ) as writer:
+
+            df.to_excel(
+                writer,
+                index=False,
+                sheet_name="Sheet1"
+            )
+
+            worksheet = writer.sheets["Sheet1"]
+
+            # ==========================
+            # 单元格格式
+            # ==========================
+
+            align_format = Alignment(
+                wrap_text=True,
+                vertical="center",
+                horizontal="center"
+            )
+
+            # ==========================
+            # 中文宽度计算
+            # ==========================
+
+            def get_string_width(text):
+
+                width = 0
+
+                for char in str(text):
+
+                    if ord(char) > 127:
+
+                        width += 2.0
+
+                    else:
+
+                        width += 1.1
+
+                return width
+
+            # ==========================
+            # 设置单元格格式和行高
+            # ==========================
+
+            for row in worksheet.iter_rows(
+
+                min_row=1,
+
+                max_row=worksheet.max_row,
+
+                min_col=1,
+
+                max_col=worksheet.max_column
+
+            ):
+
+                max_lines = 1
+
+                for cell in row:
+
+                    cell.alignment = align_format
+
+                    if cell.value is not None:
+
+                        val_str = str(cell.value)
+
+                        line_count = len(
+                            val_str.split("\n")
+                        )
+
+                        if line_count > max_lines:
+
+                            max_lines = line_count
+
+                row_idx = row[0].row
+
+                if row_idx == 1:
+
+                    worksheet.row_dimensions[
+                        row_idx
+                    ].height = 25
+
+                else:
+
+                    worksheet.row_dimensions[
+                        row_idx
+                    ].height = max(
+                        22,
+                        max_lines * 19
+                    )
+
+            # ==========================
+            # 设置列宽
+            # ==========================
+
+            for col in worksheet.columns:
+
+                max_len = 0
+
+                col_letter = get_column_letter(
+                    col[0].column
+                )
+
+                for cell in col:
+
+                    if cell.value is not None:
+
+                        lines = str(
+                            cell.value
+                        ).split("\n")
+
+                        for line in lines:
+
+                            line_width = (
+                                get_string_width(line)
+                            )
+
+                            if line_width > max_len:
+
+                                max_len = line_width
+
+                worksheet.column_dimensions[
+                    col_letter
+                ].width = max(
+                    max_len + 4,
+                    12
+                )
+
+        print(
+            f"\n🎉 任务完成！文件已保存为: {output_file}"
+        )
+    else:
+        print(
+            "\n❌ 未能提取到任何数据，请检查登录状态或搜索词。"
+        )
+# ==============================
+# 主函数
+# ==============================
+
+def main():
+
+    users = get_rank_by_selenium()
+
+    if len(users)==0:
+        print(
+            "没有找到用户"
+        )
+        return
+
+    data = get_rating(
+        users
+    )
+
+    data = add_real_name(
+        data
+    )
+
+    save_excel(
+        data
+    )
 
 if __name__ == "__main__":
-    get_detailed_rating()
+    main()
