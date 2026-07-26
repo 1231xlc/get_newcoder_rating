@@ -128,7 +128,7 @@ contest_id = "133876"
 例如：
 
 ```
-https://ac.nowcoder.com/acm/contest/137561
+https://ac.nowcoder.com/acm/contest/133876
 ```
 
 其中：
@@ -208,7 +208,7 @@ cloudscraper获取Rating
 ```
 找到1名同学
 
-查询: nju 1600
+查询: jssnu 1500
 
 任务完成！
 文件已保存:
@@ -225,8 +225,6 @@ NowCoder-Rating-Crawler
 │
 ├── main.py
 ├── README.md
-├── requirements.txt
-└── chromedriver.exe
 ```
 
 ---
